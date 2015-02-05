@@ -98,6 +98,61 @@ public enum SwingObservable { ; // no instances
     }
 
     /**
+     * Creates an observable corresponding to mouse clicked events.
+     *
+     * @param component
+     *            The component to register the observable for.
+     * @return Observable of mouse events.
+     */
+    public static Observable<MouseEvent> fromMouseClickedEvents(Component component) {
+        return MouseEventSource.fromMouseClickedEventsOf(component);
+    }
+
+    /**
+     * Creates an observable corresponding to mouse pressed events
+     *
+     * @param component
+     *            The component to register the observable for.
+     * @return Observable of mouse events.
+     */
+    public static Observable<MouseEvent> fromMousePressedEvents(Component component) {
+        return MouseEventSource.fromMousePressedEventsOf(component);
+    }
+
+    /**
+     * Creates an observable corresponding to mouse released events.
+     *
+     * @param component
+     *            The component to register the observable for.
+     * @return Observable of mouse events.
+     */
+    public static Observable<MouseEvent> fromMouseReleasedEvents(Component component) {
+        return MouseEventSource.fromMouseReleasedEventsOf(component);
+    }
+
+    /**
+     * Creates an observable corresponding to mouse entered events.
+     *
+     * @param component
+     *            The component to register the observable for.
+     * @return Observable of mouse events.
+     */
+    public static Observable<MouseEvent> fromMouseEnteredEvents(Component component) {
+        return MouseEventSource.fromMouseEnteredEventsOf(component);
+    }
+
+    /**
+     * Creates an observable corresponding to mouse exited events.
+     *
+     * @param component
+     *            The component to register the observable for.
+     * @return Observable of mouse events.
+     */
+    public static Observable<MouseEvent> fromMouseExitedEvents(Component component) {
+        return MouseEventSource.fromMouseExitedEventsOf(component);
+    }
+
+    /**
      * Creates an observable corresponding to raw mouse motion events.
      * 
      * @param component
