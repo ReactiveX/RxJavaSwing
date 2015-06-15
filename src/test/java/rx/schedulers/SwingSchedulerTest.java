@@ -17,24 +17,31 @@ package rx.schedulers;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import java.awt.EventQueue;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.SwingUtilities;
+
+import junit.framework.Assert;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.InOrder;
 
+import rx.Scheduler;
 import rx.Scheduler.Worker;
 import rx.functions.Action0;
+import rx.functions.Actions;
+import rx.internal.schedulers.NewThreadWorker;
 
 /**
  * Executes work on the Swing UI thread.
@@ -139,12 +146,19 @@ public final class SwingSchedulerTest {
         inner.schedule(thirdAction);
         waitForEmptyEventQueue();
 
+// Workers are non-reentrant!
+//        inOrder.verify(thirdStepStart, times(1)).call();
+//        inOrder.verify(secondStepStart, times(1)).call();
+//        inOrder.verify(firstStepStart, times(1)).call();
+//        inOrder.verify(firstStepEnd, times(1)).call();
+//        inOrder.verify(secondStepEnd, times(1)).call();
+//        inOrder.verify(thirdStepEnd, times(1)).call();
         inOrder.verify(thirdStepStart, times(1)).call();
+        inOrder.verify(thirdStepEnd, times(1)).call();
         inOrder.verify(secondStepStart, times(1)).call();
+        inOrder.verify(secondStepEnd, times(1)).call();
         inOrder.verify(firstStepStart, times(1)).call();
         inOrder.verify(firstStepEnd, times(1)).call();
-        inOrder.verify(secondStepEnd, times(1)).call();
-        inOrder.verify(thirdStepEnd, times(1)).call();
     }
 
     private static void waitForEmptyEventQueue() throws Exception {
@@ -155,5 +169,88 @@ public final class SwingSchedulerTest {
             }
         });
     }
+    
+    @Test(timeout = 30000)
+    public void testCancelledTaskRetention() throws InterruptedException {
+        System.out.println("Wait before GC");
+        Thread.sleep(1000);
+        
+        System.out.println("GC");
+        System.gc();
+        
+        Thread.sleep(1000);
 
+        
+        MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+        MemoryUsage memHeap = memoryMXBean.getHeapMemoryUsage();
+        long initial = memHeap.getUsed();
+        
+        System.out.printf("Starting: %.3f MB%n", initial / 1024.0 / 1024.0);
+        
+        Scheduler.Worker w = SwingScheduler.getInstance().createWorker();
+        for (int i = 0; i < 250000; i++) {
+            if (i % 50000 == 0) {
+                System.out.println("  -> still scheduling: " + i);
+            }
+            w.schedule(Actions.empty(), 1, TimeUnit.DAYS);
+        }
+        
+        memHeap = memoryMXBean.getHeapMemoryUsage();
+        long after = memHeap.getUsed();
+        System.out.printf("Peak: %.3f MB%n", after / 1024.0 / 1024.0);
+        
+        w.unsubscribe();
+        
+        System.out.println("Wait before second GC");
+        Thread.sleep(NewThreadWorker.PURGE_FREQUENCY + 2000);
+        
+        System.out.println("Second GC");
+        System.gc();
+        
+        Thread.sleep(1000);
+        
+        memHeap = memoryMXBean.getHeapMemoryUsage();
+        long finish = memHeap.getUsed();
+        System.out.printf("After: %.3f MB%n", finish / 1024.0 / 1024.0);
+        
+        if (finish > initial * 5) {
+            Assert.fail(String.format("Tasks retained: %.3f -> %.3f -> %.3f", initial / 1024 / 1024.0, after / 1024 / 1024.0, finish / 1024 / 1024d));
+        }
+    }
+    
+    @Test
+    public void testRecursiveScheduling() throws InterruptedException {
+        final AtomicInteger counter = new AtomicInteger();
+        final AtomicInteger times = new AtomicInteger(1000);
+        final AtomicBoolean reenter = new AtomicBoolean();
+        final CountDownLatch cdl = new CountDownLatch(1);
+        
+        final Scheduler.Worker w = SwingScheduler.getInstance().createWorker();
+        
+        Action0 action = new Action0() {
+            @Override
+            public void call() {
+                if (counter.getAndIncrement() == 0) {
+                    if (times.decrementAndGet() > 0) {
+                        w.schedule(this);
+                    } else {
+                        cdl.countDown();
+                        return;
+                    }
+                    if (counter.decrementAndGet() == 0) {
+                        return;
+                    }
+                }
+                reenter.set(true);
+                cdl.countDown();
+            }
+        };
+        
+        w.schedule(action, 100, TimeUnit.MILLISECONDS);
+        
+        cdl.await();
+        
+        Assert.assertFalse("Reenter detected", reenter.get());
+        Assert.assertEquals(0, times.get());
+    }
 }
