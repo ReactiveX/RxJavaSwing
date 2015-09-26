@@ -16,13 +16,9 @@
 package rx.swing.sources;
 
 import rx.Observable;
-import rx.Observable.OnSubscribe;
 import rx.Subscriber;
-import rx.functions.Action0;
 import rx.functions.Func1;
 import rx.observables.SwingObservable;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
 
 import java.awt.*;
 import java.awt.event.ComponentEvent;
@@ -30,53 +26,55 @@ import java.awt.event.ComponentListener;
 
 import static rx.swing.sources.ComponentEventSource.Predicate.RESIZED;
 
-public enum ComponentEventSource { ; // no instances
+public class ComponentEventSource extends EventSource<ComponentEvent, ComponentListener> {
 
-    /**
-     * @see rx.observables.SwingObservable#fromComponentEvents
-     */
-    public static Observable<ComponentEvent> fromComponentEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<ComponentEvent>() {
-            @Override
-            public void call(final Subscriber<? super ComponentEvent> subscriber) {
-                final ComponentListener listener = new ComponentListener() {
-                    @Override
-                    public void componentHidden(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
+    private final Component component;
 
-                    @Override
-                    public void componentMoved(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
-
-                    @Override
-                    public void componentResized(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
-
-                    @Override
-                    public void componentShown(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                component.addComponentListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        component.removeComponentListener(listener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
+    public ComponentEventSource(Component component) {
+        super();
+        this.component = component;
     }
-    
+
+    @Override
+    protected ComponentListener createListenerFor(final Subscriber<? super ComponentEvent> subscriber) {
+        return new ComponentListener() {
+            @Override
+            public void componentHidden(ComponentEvent event) {
+                subscriber.onNext(event);
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent event) {
+                subscriber.onNext(event);
+            }
+
+            @Override
+            public void componentResized(ComponentEvent event) {
+                subscriber.onNext(event);
+            }
+
+            @Override
+            public void componentShown(ComponentEvent event) {
+                subscriber.onNext(event);
+            }
+        };
+    }
+
+    @Override
+    protected void addListenerToComponent(ComponentListener listener) {
+        component.addComponentListener(listener);
+    }
+
+    @Override
+    protected void removeListenerFromComponent(ComponentListener listener) {
+        component.removeComponentListener(listener);
+    }
+
     /**
      * @see SwingObservable#fromResizing
      */
-    public static Observable<Dimension> fromResizing(final Component component) {
-        return fromComponentEventsOf(component).filter(RESIZED).map(new Func1<ComponentEvent, Dimension>() {
+    public static Observable<Dimension> resizing(Observable<ComponentEvent> events) {
+        return events.filter(RESIZED).map(new Func1<ComponentEvent, Dimension>() {
             @Override
             public Dimension call(ComponentEvent event) {
                 return event.getComponent().getSize();
@@ -104,4 +102,5 @@ public enum ComponentEventSource { ; // no instances
             return event.getID() == id;
         }
     }
+
 }

@@ -158,7 +158,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of component events.
      */
     public static Observable<ComponentEvent> fromComponentEvents(Component component) {
-        return ComponentEventSource.fromComponentEventsOf(component);
+        return create(new ComponentEventSource(component));
     }
 
     /**
@@ -180,7 +180,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the current size of the given component after each resize event.
      */
     public static Observable<Dimension> fromResizing(Component component) {
-        return ComponentEventSource.fromResizing(component);
+        return ComponentEventSource.resizing(fromComponentEvents(component));
     }
 
     /**
