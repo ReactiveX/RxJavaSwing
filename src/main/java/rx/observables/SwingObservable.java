@@ -77,7 +77,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of key events.
      */
     public static Observable<KeyEvent> fromKeyEvents(Component component) {
-        return KeyEventSource.fromKeyEventsOf(component);
+        return create(new KeyEventSource(component));
     }
 
     /**
@@ -104,7 +104,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of currently pressed keys.
      */
     public static Observable<Set<Integer>> fromPressedKeys(Component component) {
-        return KeyEventSource.currentlyPressedKeysOf(component);
+        return KeyEventSource.currentlyPressedKeys(fromKeyEvents(component));
     }
 
     /**

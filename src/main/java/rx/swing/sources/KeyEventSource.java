@@ -21,6 +21,7 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Func1;
 import rx.functions.Func2;
+import rx.observables.SwingObservable;
 import rx.schedulers.SwingScheduler;
 import rx.subscriptions.Subscriptions;
 
@@ -31,48 +32,49 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-public enum KeyEventSource { ; // no instances
+public class KeyEventSource extends EventSource<KeyEvent, KeyListener> {
 
-    /**
-     * @see rx.observables.SwingObservable#fromKeyEvents(Component)
-     */
-    public static Observable<KeyEvent> fromKeyEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<KeyEvent>() {
+    private final Component component;
+
+    public KeyEventSource(Component component) {
+        super();
+        this.component = component;
+    }
+
+    @Override
+    protected KeyListener createListenerFor(final Subscriber<? super KeyEvent> subscriber) {
+        return new KeyListener() {
             @Override
-            public void call(final Subscriber<? super KeyEvent> subscriber) {
-                final KeyListener listener = new KeyListener() {
-                    @Override
-                    public void keyPressed(KeyEvent event) {
-                        subscriber.onNext(event);
-                    }
-
-                    @Override
-                    public void keyReleased(KeyEvent event) {
-                        subscriber.onNext(event);
-                    }
-
-                    @Override
-                    public void keyTyped(KeyEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                component.addKeyListener(listener);
-
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        component.removeKeyListener(listener);
-                    }
-                }));
+            public void keyPressed(KeyEvent event) {
+                subscriber.onNext(event);
             }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
+
+            @Override
+            public void keyReleased(KeyEvent event) {
+                subscriber.onNext(event);
+            }
+
+            @Override
+            public void keyTyped(KeyEvent event) {
+                subscriber.onNext(event);
+            }
+        };
+    }
+
+    @Override
+    protected void addListenerToComponent(KeyListener listener) {
+        component.addKeyListener(listener);
+    }
+
+    @Override
+    protected void removeListenerFromComponent(KeyListener listener) {
+        component.removeKeyListener(listener);
     }
 
     /**
      * @see rx.observables.SwingObservable#fromPressedKeys(Component)
      */
-    public static Observable<Set<Integer>> currentlyPressedKeysOf(Component component) {
+    public static Observable<Set<Integer>> currentlyPressedKeys(Observable<KeyEvent> keyEvents) {
         class CollectKeys implements Func2<Set<Integer>, KeyEvent, Set<Integer>>{
             @Override
             public Set<Integer> call(Set<Integer> pressedKeys, KeyEvent event) {
@@ -92,7 +94,7 @@ public enum KeyEventSource { ; // no instances
             }
         }
         
-        Observable<KeyEvent> filteredKeyEvents = fromKeyEventsOf(component).filter(new Func1<KeyEvent, Boolean>() {
+        Observable<KeyEvent> filteredKeyEvents = keyEvents.filter(new Func1<KeyEvent, Boolean>() {
             @Override
             public Boolean call(KeyEvent event) {
                 return event.getID() == KeyEvent.KEY_PRESSED || event.getID() == KeyEvent.KEY_RELEASED;
@@ -101,5 +103,4 @@ public enum KeyEventSource { ; // no instances
         
         return filteredKeyEvents.scan(Collections.<Integer>emptySet(), new CollectKeys());
     }
-    
 }
