@@ -15,38 +15,38 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
 import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
 
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
-public enum ItemEventSource { ; // no instances
+public class ItemEventSource extends EventSource<ItemEvent, ItemListener> {
 
-    public static Observable<ItemEvent> fromItemEventsOf(final ItemSelectable itemSelectable) {
-        return Observable.create(new OnSubscribe<ItemEvent>() {
+    private ItemSelectable component;
+
+    public ItemEventSource(ItemSelectable component) {
+        super();
+        this.component = component;
+    }
+
+    @Override
+    protected ItemListener createListenerFor(final Subscriber<? super ItemEvent> subscriber) {
+        return new ItemListener() {
             @Override
-            public void call(final Subscriber<? super ItemEvent> subscriber) {
-                final ItemListener listener = new ItemListener() {
-                    @Override
-                    public void itemStateChanged( ItemEvent event ) {
-                        subscriber.onNext(event);
-                    }
-                };
-                itemSelectable.addItemListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        itemSelectable.removeItemListener(listener);
-                    }
-                }));
+            public void itemStateChanged(ItemEvent event) {
+                subscriber.onNext(event);
             }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
+        };
+    }
+
+    @Override
+    protected void addListenerToComponent(ItemListener listener) {
+        component.addItemListener(listener);
+    }
+
+    @Override
+    protected void removeListenerFromComponent(ItemListener listener) {
+        component.removeItemListener(listener);
     }
 }

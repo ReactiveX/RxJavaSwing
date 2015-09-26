@@ -191,7 +191,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the item events for the given itemSelectable.
      */
     public static Observable<ItemEvent> fromItemEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable);
+        return create(new ItemEventSource(itemSelectable));
     }
     
     /**
@@ -202,7 +202,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is selected.
      */
     public static Observable<ItemEvent> fromItemSelectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
+        return fromItemEvents(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
             @Override
             public Boolean call(ItemEvent event) {
                 return event.getStateChange() == ItemEvent.SELECTED;
@@ -218,7 +218,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is deselected.
      */
     public static Observable<ItemEvent> fromItemDeselectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
+        return fromItemEvents(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
             @Override
             public Boolean call(ItemEvent event) {
                 return event.getStateChange() == ItemEvent.DESELECTED;
