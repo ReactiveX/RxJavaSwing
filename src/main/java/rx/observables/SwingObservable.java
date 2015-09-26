@@ -56,8 +56,17 @@ public enum SwingObservable { ; // no instances
      *            The button to register the observable for.
      * @return Observable of action events.
      */
-    public static Observable<ActionEvent> fromButtonAction(AbstractButton button) {
-        return AbstractButtonSource.fromActionOf(button);
+    public static Observable<ActionEvent> fromButtonAction(final AbstractButton button) {
+        return create(new ActionEventSource() {
+            @Override
+            public void addListenerToComponent(ActionListener listener) {
+                button.addActionListener(listener);
+            }
+            @Override
+            public void removeListenerFromComponent(ActionListener listener) {
+                button.removeActionListener(listener);
+            }
+        });
     }
 
     /**
