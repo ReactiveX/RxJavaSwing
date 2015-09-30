@@ -21,20 +21,33 @@ import java.beans.PropertyChangeEvent;
 import java.util.Set;
 
 import javax.swing.AbstractButton;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.text.Document;
 
 import rx.Observable;
+import rx.Subscriber;
+import rx.Observable.OnSubscribe;
 import rx.functions.Func1;
+import rx.schedulers.SwingScheduler;
 import rx.swing.sources.*;
 
 /**
  * Allows creating observables from various sources specific to Swing. 
  */
 public enum SwingObservable { ; // no instances
+
+    private static <T> Observable<T> create(OnSubscribe<T> f) {
+        return Observable.create(f)
+                .subscribeOn(SwingScheduler.getInstance())
+                .unsubscribeOn(SwingScheduler.getInstance());
+    }
 
     /**
      * Creates an observable corresponding to a Swing button action.
@@ -43,8 +56,17 @@ public enum SwingObservable { ; // no instances
      *            The button to register the observable for.
      * @return Observable of action events.
      */
-    public static Observable<ActionEvent> fromButtonAction(AbstractButton button) {
-        return AbstractButtonSource.fromActionOf(button);
+    public static Observable<ActionEvent> fromButtonAction(final AbstractButton button) {
+        return create(new ActionEventSource() {
+            @Override
+            public void addListenerToComponent(ActionListener listener) {
+                button.addActionListener(listener);
+            }
+            @Override
+            public void removeListenerFromComponent(ActionListener listener) {
+                button.removeActionListener(listener);
+            }
+        });
     }
 
     /**
@@ -55,7 +77,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of key events.
      */
     public static Observable<KeyEvent> fromKeyEvents(Component component) {
-        return KeyEventSource.fromKeyEventsOf(component);
+        return create(new KeyEventSource(component));
     }
 
     /**
@@ -82,7 +104,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of currently pressed keys.
      */
     public static Observable<Set<Integer>> fromPressedKeys(Component component) {
-        return KeyEventSource.currentlyPressedKeysOf(component);
+        return KeyEventSource.currentlyPressedKeys(fromKeyEvents(component));
     }
 
     /**
@@ -136,7 +158,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of component events.
      */
     public static Observable<ComponentEvent> fromComponentEvents(Component component) {
-        return ComponentEventSource.fromComponentEventsOf(component);
+        return create(new ComponentEventSource(component));
     }
 
     /**
@@ -158,7 +180,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the current size of the given component after each resize event.
      */
     public static Observable<Dimension> fromResizing(Component component) {
-        return ComponentEventSource.fromResizing(component);
+        return ComponentEventSource.resizing(fromComponentEvents(component));
     }
 
     /**
@@ -169,7 +191,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the item events for the given itemSelectable.
      */
     public static Observable<ItemEvent> fromItemEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable);
+        return create(new ItemEventSource(itemSelectable));
     }
     
     /**
@@ -180,7 +202,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is selected.
      */
     public static Observable<ItemEvent> fromItemSelectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
+        return fromItemEvents(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
             @Override
             public Boolean call(ItemEvent event) {
                 return event.getStateChange() == ItemEvent.SELECTED;
@@ -196,7 +218,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is deselected.
      */
     public static Observable<ItemEvent> fromItemDeselectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
+        return fromItemEvents(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
             @Override
             public Boolean call(ItemEvent event) {
                 return event.getStateChange() == ItemEvent.DESELECTED;
@@ -280,6 +302,46 @@ public enum SwingObservable { ; // no instances
             @Override
             public Boolean call(DocumentEvent event) {
                 return eventTypes.contains(event.getType());
+            }
+        });
+    }
+
+    /**
+     * Creates an observable corresponding to JSlider changes.
+     * 
+     * @param component
+     *            The slider to register the observable for.
+     * @return Observable of change events.
+     */
+    public static Observable<ChangeEvent> fromChangeEvents(final JSlider component) {
+        return create(new ChangeEventSource() {
+            @Override
+            protected void addListenerToComponent(ChangeListener listener) {
+                component.addChangeListener(listener);
+            }
+            @Override
+            protected void removeListenerFromComponent(ChangeListener listener) {
+                component.removeChangeListener(listener);
+            }
+        });
+    }
+
+    /**
+     * Creates an observable corresponding to JSpinner changes.
+     * 
+     * @param component
+     *            The spinner to register the observable for.
+     * @return Observable of change events.
+     */
+    public static Observable<ChangeEvent> fromChangeEvents(final JSpinner component) {
+        return create(new ChangeEventSource() {
+            @Override
+            protected void addListenerToComponent(ChangeListener listener) {
+                component.addChangeListener(listener);
+            }
+            @Override
+            protected void removeListenerFromComponent(ChangeListener listener) {
+                component.removeChangeListener(listener);
             }
         });
     }

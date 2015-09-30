@@ -69,7 +69,7 @@ public class ItemEventSourceTest
                 }
 
                 TestButton button = new TestButton();
-                Subscription sub = ItemEventSource.fromItemEventsOf(button).subscribe(action,
+                Subscription sub = SwingObservable.fromItemEvents(button).subscribe(action,
                         error, complete);
 
                 verify(action, never()).call(Matchers.<ItemEvent> any());

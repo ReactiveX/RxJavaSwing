@@ -30,6 +30,7 @@ import javax.swing.AbstractButton;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.observables.SwingObservable;
 
 public class AbstractButtonSourceTest {
     @Test
@@ -54,7 +55,7 @@ public class AbstractButtonSourceTest {
                 }
 
                 TestButton button = new TestButton();
-                Subscription sub = AbstractButtonSource.fromActionOf(button).subscribe(action,
+                Subscription sub = SwingObservable.fromButtonAction(button).subscribe(action,
                         error, complete);
 
                 verify(action, never()).call(Matchers.<ActionEvent> any());

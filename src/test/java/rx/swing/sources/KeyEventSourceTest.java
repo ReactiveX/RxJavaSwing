@@ -38,6 +38,7 @@ import org.mockito.Matchers;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.observables.SwingObservable;
 
 public class KeyEventSourceTest {
     private Component comp = new JPanel();
@@ -56,7 +57,7 @@ public class KeyEventSourceTest {
 
                 final KeyEvent event = mock(KeyEvent.class);
 
-                Subscription sub = KeyEventSource.fromKeyEventsOf(comp)
+                Subscription sub = SwingObservable.fromKeyEvents(comp)
                         .subscribe(action, error, complete);
 
                 verify(action, never()).call(Matchers.<KeyEvent> any());
@@ -91,7 +92,7 @@ public class KeyEventSourceTest {
                 Action1<Throwable> error = mock(Action1.class);
                 Action0 complete = mock(Action0.class);
 
-                Subscription sub = KeyEventSource.currentlyPressedKeysOf(comp)
+                Subscription sub = SwingObservable.fromPressedKeys(comp)
                         .subscribe(action, error, complete);
 
                 InOrder inOrder = inOrder(action);
