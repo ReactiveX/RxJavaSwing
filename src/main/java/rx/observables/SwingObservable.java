@@ -21,20 +21,33 @@ import java.beans.PropertyChangeEvent;
 import java.util.Set;
 
 import javax.swing.AbstractButton;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.text.Document;
 
 import rx.Observable;
+import rx.Subscriber;
+import rx.Observable.OnSubscribe;
 import rx.functions.Func1;
+import rx.schedulers.SwingScheduler;
 import rx.swing.sources.*;
 
 /**
  * Allows creating observables from various sources specific to Swing. 
  */
 public enum SwingObservable { ; // no instances
+
+    private static <T> Observable<T> create(OnSubscribe<T> f) {
+        return Observable.create(f)
+                .subscribeOn(SwingScheduler.getInstance())
+                .unsubscribeOn(SwingScheduler.getInstance());
+    }
 
     /**
      * Creates an observable corresponding to a Swing button action.
@@ -280,6 +293,46 @@ public enum SwingObservable { ; // no instances
             @Override
             public Boolean call(DocumentEvent event) {
                 return eventTypes.contains(event.getType());
+            }
+        });
+    }
+
+    /**
+     * Creates an observable corresponding to JSlider changes.
+     * 
+     * @param component
+     *            The slider to register the observable for.
+     * @return Observable of change events.
+     */
+    public static Observable<ChangeEvent> fromChangeEvents(final JSlider component) {
+        return create(new ChangeEventSource() {
+            @Override
+            protected void addListenerToComponent(ChangeListener listener) {
+                component.addChangeListener(listener);
+            }
+            @Override
+            protected void removeListenerFromComponent(ChangeListener listener) {
+                component.removeChangeListener(listener);
+            }
+        });
+    }
+
+    /**
+     * Creates an observable corresponding to JSpinner changes.
+     * 
+     * @param component
+     *            The spinner to register the observable for.
+     * @return Observable of change events.
+     */
+    public static Observable<ChangeEvent> fromChangeEvents(final JSpinner component) {
+        return create(new ChangeEventSource() {
+            @Override
+            protected void addListenerToComponent(ChangeListener listener) {
+                component.addChangeListener(listener);
+            }
+            @Override
+            protected void removeListenerFromComponent(ChangeListener listener) {
+                component.removeChangeListener(listener);
             }
         });
     }
