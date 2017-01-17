@@ -76,6 +76,136 @@ public enum MouseEventSource {
     }
 
     /**
+     * @see rx.observables.SwingObservable#fromMouseClickedEvents
+     */
+    public static Observable<MouseEvent> fromMouseClickedEventsOf(final Component component) {
+        return Observable.create(new OnSubscribe<MouseEvent>() {
+            @Override
+            public void call(final Subscriber<? super MouseEvent> subscriber) {
+                SwingObservable.assertEventDispatchThread();
+                final MouseListener listener = new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent event) {
+                        subscriber.onNext(event);
+                    }
+                };
+                component.addMouseListener(listener);
+
+                subscriber.add(SwingSubscriptions.unsubscribeInEventDispatchThread(new Action0() {
+                    @Override
+                    public void call() {
+                        component.removeMouseListener(listener);
+                    }
+                }));
+            }
+        });
+    }
+
+    /**
+     * @see rx.observables.SwingObservable#fromMousePressedEvents
+     */
+    public static Observable<MouseEvent> fromMousePressedEventsOf(final Component component) {
+        return Observable.create(new OnSubscribe<MouseEvent>() {
+            @Override
+            public void call(final Subscriber<? super MouseEvent> subscriber) {
+                SwingObservable.assertEventDispatchThread();
+                final MouseListener listener = new MouseAdapter() {
+                    @Override
+                    public void mousePressed(MouseEvent event) {
+                        subscriber.onNext(event);
+                    }
+                };
+                component.addMouseListener(listener);
+
+                subscriber.add(SwingSubscriptions.unsubscribeInEventDispatchThread(new Action0() {
+                    @Override
+                    public void call() {
+                        component.removeMouseListener(listener);
+                    }
+                }));
+            }
+        });
+    }
+
+    /**
+     * @see rx.observables.SwingObservable#fromMouseReleasedEvents
+     */
+    public static Observable<MouseEvent> fromMouseReleasedEventsOf(final Component component) {
+        return Observable.create(new OnSubscribe<MouseEvent>() {
+            @Override
+            public void call(final Subscriber<? super MouseEvent> subscriber) {
+                SwingObservable.assertEventDispatchThread();
+                final MouseListener listener = new MouseAdapter() {
+                    @Override
+                    public void mouseReleased(MouseEvent event) {
+                        subscriber.onNext(event);
+                    }
+                };
+                component.addMouseListener(listener);
+
+                subscriber.add(SwingSubscriptions.unsubscribeInEventDispatchThread(new Action0() {
+                    @Override
+                    public void call() {
+                        component.removeMouseListener(listener);
+                    }
+                }));
+            }
+        });
+    }
+
+    /**
+     * @see rx.observables.SwingObservable#fromMouseEnteredEvents
+     */
+    public static Observable<MouseEvent> fromMouseEnteredEventsOf(final Component component) {
+        return Observable.create(new OnSubscribe<MouseEvent>() {
+            @Override
+            public void call(final Subscriber<? super MouseEvent> subscriber) {
+                SwingObservable.assertEventDispatchThread();
+                final MouseListener listener = new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent event) {
+                        subscriber.onNext(event);
+                    }
+                };
+                component.addMouseListener(listener);
+
+                subscriber.add(SwingSubscriptions.unsubscribeInEventDispatchThread(new Action0() {
+                    @Override
+                    public void call() {
+                        component.removeMouseListener(listener);
+                    }
+                }));
+            }
+        });
+    }
+
+    /**
+     * @see rx.observables.SwingObservable#fromMouseExitedEvents
+     */
+    public static Observable<MouseEvent> fromMouseExitedEventsOf(final Component component) {
+        return Observable.create(new OnSubscribe<MouseEvent>() {
+            @Override
+            public void call(final Subscriber<? super MouseEvent> subscriber) {
+                SwingObservable.assertEventDispatchThread();
+                final MouseListener listener = new MouseAdapter() {
+                    @Override
+                    public void mouseExited(MouseEvent event) {
+                        subscriber.onNext(event);
+                    }
+                };
+                component.addMouseListener(listener);
+
+                subscriber.add(SwingSubscriptions.unsubscribeInEventDispatchThread(new Action0() {
+                    @Override
+                    public void call() {
+                        component.removeMouseListener(listener);
+                    }
+                }));
+            }
+        });
+    }
+
+    /**
      * @see rx.observables.SwingObservable#fromMouseMotionEvents
      */
     public static Observable<MouseEvent> fromMouseMotionEventsOf(final Component component) {

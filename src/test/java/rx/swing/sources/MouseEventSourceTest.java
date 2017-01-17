@@ -32,6 +32,7 @@ import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Matchers;
 
+import rx.Observable;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
@@ -80,7 +81,7 @@ public class MouseEventSourceTest {
     }
 
     @Test
-    public void testMouseEvents() throws Throwable {
+    public void testRawMouseEvents() throws Throwable {
         SwingTestHelper.create().runInEventDispatchThread(new Action0() {
 
             @Override
@@ -102,22 +103,82 @@ public class MouseEventSourceTest {
 
                 MouseEvent mouseEvent =
                         mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED);
-                fireMouseClickEvent(mouseEvent);
+                fireMouseEventType(mouseEvent, MouseEvent.MOUSE_CLICKED);
                 inOrder.verify(action, times(1)).call(mouseEvent);
 
                 mouseEvent = mouseEvent(300, 200, MouseEvent.MOUSE_CLICKED);
-                fireMouseClickEvent(mouseEvent);
+                fireMouseEventType(mouseEvent, MouseEvent.MOUSE_CLICKED);
                 inOrder.verify(action, times(1)).call(mouseEvent);
 
                 mouseEvent = mouseEvent(0, 0,  MouseEvent.MOUSE_CLICKED);
-                fireMouseClickEvent(mouseEvent);
+                fireMouseEventType(mouseEvent, MouseEvent.MOUSE_CLICKED);
                 inOrder.verify(action, times(1)).call(mouseEvent);
 
                 sub.unsubscribe();
-                fireMouseClickEvent(mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED));
+                fireMouseEventType(mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED), MouseEvent.MOUSE_CLICKED);
                 inOrder.verify(action, never()).call(Matchers.<MouseEvent> any());
-                verify(error, never()).call(Matchers.<Exception> any());
+                verify(error, never()).call(Matchers.<Exception>any());
                 verify(complete, never()).call();
+            }
+
+        }).awaitTerminal();
+    }
+
+    @Test
+    public void testMouseButtonEvents() throws Throwable {
+        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+
+            @Override
+            public void call() {
+                //test mouse press
+                {
+                    Observable<MouseEvent> mousePressObservable =
+                            MouseEventSource.fromMousePressedEventsOf(comp);
+
+                    genericMouseEventTester(MouseEvent.MOUSE_PRESSED, mousePressObservable);
+                }
+
+                //test mouse click
+                {
+                    Observable<MouseEvent> mouseClickObservable =
+                            MouseEventSource.fromMouseClickedEventsOf(comp);
+
+                    genericMouseEventTester(MouseEvent.MOUSE_CLICKED, mouseClickObservable);
+                }
+
+                //test mouse release
+                {
+                    Observable<MouseEvent> mouseReleaseObservable =
+                            MouseEventSource.fromMouseReleasedEventsOf(comp);
+
+                    genericMouseEventTester(MouseEvent.MOUSE_RELEASED, mouseReleaseObservable);
+                }
+            }
+
+        }).awaitTerminal();
+    }
+
+    @Test
+    public void testMouseEnteredExitedEvents() throws Throwable {
+        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+
+            @Override
+            public void call() {
+                //test mouse entered
+                {
+                    Observable<MouseEvent> mouseEnterObservable =
+                            MouseEventSource.fromMouseEnteredEventsOf(comp);
+
+                    genericMouseEventTester(MouseEvent.MOUSE_ENTERED, mouseEnterObservable);
+                }
+
+                //test mouse exited
+                {
+                    Observable<MouseEvent> mouseExitObservable =
+                            MouseEventSource.fromMouseExitedEventsOf(comp);
+
+                    genericMouseEventTester(MouseEvent.MOUSE_EXITED, mouseExitObservable);
+                }
             }
 
         }).awaitTerminal();
@@ -161,7 +222,7 @@ public class MouseEventSourceTest {
                 inOrder.verify(action, times(1)).call(mouseEvent);
 
                 sub.unsubscribe();
-                fireMouseClickEvent(mouseEvent(0, 0,  MouseEvent.MOUSE_CLICKED));
+                fireMouseEventType(mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED), MouseEvent.MOUSE_CLICKED);
                 inOrder.verify(action, never()).call(Matchers.<MouseEvent> any());
                 verify(error, never()).call(Matchers.<Exception> any());
                 verify(complete, never()).call();
@@ -181,9 +242,30 @@ public class MouseEventSourceTest {
         }
     }
 
-    private void fireMouseClickEvent(MouseEvent event) {
+    private void fireMouseEventType(MouseEvent event, int MouseEventType) {
         for (MouseListener listener : comp.getMouseListeners()) {
-            listener.mouseClicked(event);
+            switch (MouseEventType) {
+                case MouseEvent.MOUSE_CLICKED: {
+                    listener.mouseClicked(event);
+                    break;
+                }
+                case MouseEvent.MOUSE_PRESSED: {
+                    listener.mousePressed(event);
+                    break;
+                }
+                case MouseEvent.MOUSE_RELEASED: {
+                    listener.mouseReleased(event);
+                    break;
+                }
+                case MouseEvent.MOUSE_ENTERED: {
+                    listener.mouseEntered(event);
+                    break;
+                }
+                case MouseEvent.MOUSE_EXITED: {
+                    listener.mouseExited(event);
+                    break;
+                }
+            }
         }
     }
 
@@ -198,5 +280,39 @@ public class MouseEventSourceTest {
         for (MouseWheelListener listener : comp.getMouseWheelListeners()) {
             listener.mouseWheelMoved(event);
         }
+    }
+
+    private void genericMouseEventTester(int mouseEventType,
+                                         Observable<MouseEvent> mouseObservable){
+        @SuppressWarnings("unchecked")
+        Action1<MouseEvent> action = mock(Action1.class);
+        @SuppressWarnings("unchecked")
+        Action1<Throwable> error = mock(Action1.class);
+        Action0 complete = mock(Action0.class);
+
+        Subscription sub = mouseObservable
+                .subscribe(action, error, complete);
+
+        InOrder inOrder = inOrder(action);
+
+        MouseEvent desiredEvent =
+                mouseEvent(0, 0, mouseEventType);
+        fireMouseEventType(desiredEvent, mouseEventType);
+        inOrder.verify(action, times(1)).call(desiredEvent);
+
+        int undesiredEventType =  MouseEvent.MOUSE_LAST;
+        MouseEvent undesiredEvent = mouseEvent(0, 0, undesiredEventType);
+        fireMouseEventType(undesiredEvent, undesiredEventType);
+        inOrder.verify(action, never()).call(Matchers.<MouseEvent> any());
+
+        fireMouseEventType(desiredEvent, mouseEventType);
+        fireMouseEventType(desiredEvent, mouseEventType);
+        inOrder.verify(action, times(2)).call(desiredEvent);
+
+        sub.unsubscribe();
+        fireMouseEventType(mouseEvent(0, 0, mouseEventType), mouseEventType);
+        inOrder.verify(action, never()).call(Matchers.<MouseEvent> any());
+        verify(error, never()).call(Matchers.<Exception> any());
+        verify(complete, never()).call();
     }
 }
