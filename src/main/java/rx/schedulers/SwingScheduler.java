@@ -18,15 +18,19 @@ package rx.schedulers;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.subscriptions.BooleanSubscription;
 import rx.subscriptions.CompositeSubscription;
+import rx.subscriptions.SerialSubscription;
 import rx.subscriptions.Subscriptions;
 
 /**
@@ -53,61 +57,94 @@ public final class SwingScheduler extends Scheduler {
         return new InnerSwingScheduler();
     }
 
-    private static class InnerSwingScheduler extends Worker {
+    private static class InnerSwingScheduler extends Worker implements Runnable {
 
-        private final CompositeSubscription innerSubscription = new CompositeSubscription();
+        private final CompositeSubscription tracking = new CompositeSubscription();
 
+        /** Allows cheaper trampolining than invokeLater(). Accessed from EDT only. */
+        private final Queue<Runnable> queue = new ConcurrentLinkedQueue<Runnable>();
+        /** Allows cheaper trampolining than invokeLater(). Accessed from EDT only. */
+        private int wip;
+        
         @Override
         public void unsubscribe() {
-            innerSubscription.unsubscribe();
+            tracking.unsubscribe();
         }
 
         @Override
         public boolean isUnsubscribed() {
-            return innerSubscription.isUnsubscribed();
+            return tracking.isUnsubscribed();
         }
 
         @Override
         public Subscription schedule(final Action0 action, long delayTime, TimeUnit unit) {
             long delay = Math.max(0, unit.toMillis(delayTime));
             assertThatTheDelayIsValidForTheSwingTimer(delay);
-            final BooleanSubscription s = BooleanSubscription.create();
-            class ExecuteOnceAction implements ActionListener {
+            
+            class DualAction implements ActionListener, Subscription, Runnable {
                 private Timer timer;
-
+                final SerialSubscription subs = new SerialSubscription();
+                boolean nonDelayed;
+                
                 private void setTimer(Timer timer) {
                     this.timer = timer;
                 }
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    timer.stop();
-                    if (innerSubscription.isUnsubscribed() || s.isUnsubscribed()) {
-                        return;
+                    run();
+                }
+                
+                @Override
+                public void run() {
+                    if (nonDelayed) {
+                        try {
+                            if (tracking.isUnsubscribed() || isUnsubscribed()) {
+                                return;
+                            }
+                            action.call();
+                        } finally {
+                            subs.unsubscribe();
+                        }
+                    } else {
+                        timer.stop();
+                        timer = null;
+                        nonDelayed = true;
+                        trampoline(this);
                     }
-                    action.call();
-                    innerSubscription.remove(s);
+                }
+                
+                @Override
+                public boolean isUnsubscribed() {
+                    return subs.isUnsubscribed();
+                }
+                
+                @Override
+                public void unsubscribe() {
+                    subs.unsubscribe();
+                }
+                public void set(Subscription s) {
+                    subs.set(s);
                 }
             }
+            
 
-            ExecuteOnceAction executeOnce = new ExecuteOnceAction();
+            final DualAction executeOnce = new DualAction();
+            tracking.add(executeOnce);
+
             final Timer timer = new Timer((int) delay, executeOnce);
             executeOnce.setTimer(timer);
             timer.start();
 
-            innerSubscription.add(s);
-
-            // wrap for returning so it also removes it from the 'innerSubscription'
-            return Subscriptions.create(new Action0() {
-
+            executeOnce.set(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
                     timer.stop();
-                    s.unsubscribe();
-                    innerSubscription.remove(s);
+                    tracking.remove(executeOnce);
                 }
-
-            });
+            }));
+            
+            return executeOnce;
         }
 
         @Override
@@ -117,34 +154,74 @@ public final class SwingScheduler extends Scheduler {
             final Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    if (innerSubscription.isUnsubscribed() || s.isUnsubscribed()) {
-                        return;
+                    try {
+                        if (tracking.isUnsubscribed() || s.isUnsubscribed()) {
+                            return;
+                        }
+                        action.call();
+                    } finally {
+                        tracking.remove(s);
                     }
-                    action.call();
-                    innerSubscription.remove(s);
                 }
             };
+            tracking.add(s);
 
-            if (SwingUtilities.isEventDispatchThread()){
-                runnable.run();
+            if (SwingUtilities.isEventDispatchThread()) {
+                if (trampoline(runnable)) {
+                    return Subscriptions.unsubscribed();
+                }
             } else {
-                EventQueue.invokeLater(runnable);
+                queue.offer(runnable);
+                EventQueue.invokeLater(this);
             }
 
-            innerSubscription.add(s);
             // wrap for returning so it also removes it from the 'innerSubscription'
             return Subscriptions.create(new Action0() {
 
                 @Override
                 public void call() {
-                    s.unsubscribe();
-                    innerSubscription.remove(s);
+                    tracking.remove(s);
                 }
 
             });
         }
 
+        /**
+         * Uses a fast-path/slow path trampolining and tries to run
+         * the given runnable directly.
+         * @param runnable
+         * @return true if the fast path was taken
+         */
+        boolean trampoline(Runnable runnable) {
+            // fast path: if wip increments from 0 to 1
+            if (wip == 0) {
+                wip = 1;
+                runnable.run();
+                // but a recursive schedule happened
+                if (--wip > 0) {
+                    do {
+                        Runnable r = queue.poll();
+                        r.run();
+                    } while (--wip > 0);
+                }
+                return true;
+            }
+            queue.offer(runnable);
+            run();
+            return false;
+        }
+        
+        @Override
+        public void run() {
+            if (wip++ == 0) {
+                do {
+                    Runnable r = queue.poll();
+                    r.run();
+                } while (--wip > 0);
+            }
+        }
     }
+    
 
     private static void assertThatTheDelayIsValidForTheSwingTimer(long delay) {
         if (delay < 0 || delay > Integer.MAX_VALUE) {
