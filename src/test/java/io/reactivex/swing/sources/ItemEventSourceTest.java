@@ -1,215 +1,211 @@
 /**
  * Copyright 2014 Netflix, Inc.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
-import static java.awt.event.ItemEvent.DESELECTED;
-import static java.awt.event.ItemEvent.SELECTED;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
-import java.awt.event.ItemEvent;
-
-import javax.swing.AbstractButton;
-
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.observables.SwingObservable;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.observables.SwingObservable;
+import javax.swing.*;
+import java.awt.event.ItemEvent;
 
-public class ItemEventSourceTest
-{
+import static java.awt.event.ItemEvent.DESELECTED;
+import static java.awt.event.ItemEvent.SELECTED;
+import static org.mockito.Mockito.*;
+
+public class ItemEventSourceTest {
     @Test
     public void testObservingItemEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<ItemEvent> action = mock(Action1.class);
+                Consumer<ItemEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
-                
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
+
                 @SuppressWarnings("serial")
                 class TestButton extends AbstractButton {
-                    
+
                     void testSelection() {
-                        fireItemStateChanged(new ItemEvent(this, 
-                                                           ItemEvent.ITEM_STATE_CHANGED, 
-                                                           this, 
-                                                           ItemEvent.SELECTED));
+                        fireItemStateChanged(new ItemEvent(this,
+                                ItemEvent.ITEM_STATE_CHANGED,
+                                this,
+                                ItemEvent.SELECTED));
                     }
+
                     void testDeselection() {
-                        fireItemStateChanged(new ItemEvent(this, 
-                                                           ItemEvent.ITEM_STATE_CHANGED, 
-                                                           this, 
-                                                           ItemEvent.DESELECTED));
+                        fireItemStateChanged(new ItemEvent(this,
+                                ItemEvent.ITEM_STATE_CHANGED,
+                                this,
+                                ItemEvent.DESELECTED));
                     }
                 }
 
                 TestButton button = new TestButton();
-                Subscription sub = ItemEventSource.fromItemEventsOf(button).subscribe(action,
+                Disposable sub = ItemEventSource.fromItemEventsOf(button).subscribe(action,
                         error, complete);
 
-                verify(action, never()).call(Matchers.<ItemEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<ItemEvent>any());
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
 
                 button.testSelection();
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
 
                 button.testSelection();
-                verify(action, times(2)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
-                
+                verify(action, times(2)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+
                 button.testDeselection();
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
 
 
-                sub.unsubscribe();
+                sub.dispose();
                 button.testSelection();
-                verify(action, times(2)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, times(2)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
             }
         }).awaitTerminal();
     }
-    
+
     @Test
     public void testObservingItemEventsFilteredBySelected() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<ItemEvent> action = mock(Action1.class);
+                Consumer<ItemEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
-                
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
+
                 @SuppressWarnings("serial")
                 class TestButton extends AbstractButton {
                     void testSelection() {
-                        fireItemStateChanged(new ItemEvent(this, 
-                                                           ItemEvent.ITEM_STATE_CHANGED, 
-                                                           this, 
-                                                           ItemEvent.SELECTED));
+                        fireItemStateChanged(new ItemEvent(this,
+                                ItemEvent.ITEM_STATE_CHANGED,
+                                this,
+                                ItemEvent.SELECTED));
                     }
+
                     void testDeselection() {
-                        fireItemStateChanged(new ItemEvent(this, 
-                                                           ItemEvent.ITEM_STATE_CHANGED, 
-                                                           this, 
-                                                           ItemEvent.DESELECTED));
+                        fireItemStateChanged(new ItemEvent(this,
+                                ItemEvent.ITEM_STATE_CHANGED,
+                                this,
+                                ItemEvent.DESELECTED));
                     }
                 }
 
                 TestButton button = new TestButton();
-                Subscription sub = SwingObservable.fromItemSelectionEvents(button)
-                                                  .subscribe(action, error, complete);
+                Disposable sub = SwingObservable.fromItemSelectionEvents(button)
+                        .subscribe(action, error, complete);
 
-                verify(action, never()).call(Matchers.<ItemEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<ItemEvent>any());
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
 
                 button.testSelection();
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
-                
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+
                 button.testDeselection();
-                verify(action, never()).call(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
+                verify(action, never()).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
 
 
-                sub.unsubscribe();
+                sub.dispose();
                 button.testSelection();
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
-                verify(action, never()).call(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+                verify(action, never()).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
             }
         }).awaitTerminal();
     }
-    
+
     @Test
     public void testObservingItemEventsFilteredByDeSelected() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<ItemEvent> action = mock(Action1.class);
+                Consumer<ItemEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
-                
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
+
                 @SuppressWarnings("serial")
                 class TestButton extends AbstractButton {
                     void testSelection() {
-                        fireItemStateChanged(new ItemEvent(this, 
-                                                           ItemEvent.ITEM_STATE_CHANGED, 
-                                                           this, 
-                                                           ItemEvent.SELECTED));
+                        fireItemStateChanged(new ItemEvent(this,
+                                ItemEvent.ITEM_STATE_CHANGED,
+                                this,
+                                ItemEvent.SELECTED));
                     }
+
                     void testDeselection() {
-                        fireItemStateChanged(new ItemEvent(this, 
-                                                           ItemEvent.ITEM_STATE_CHANGED, 
-                                                           this, 
-                                                           ItemEvent.DESELECTED));
+                        fireItemStateChanged(new ItemEvent(this,
+                                ItemEvent.ITEM_STATE_CHANGED,
+                                this,
+                                ItemEvent.DESELECTED));
                     }
                 }
 
                 TestButton button = new TestButton();
-                Subscription sub = SwingObservable.fromItemDeselectionEvents(button)
-                                                  .subscribe(action, error, complete);
+                Disposable sub = SwingObservable.fromItemDeselectionEvents(button)
+                        .subscribe(action, error, complete);
 
-                verify(action, never()).call(Matchers.<ItemEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<ItemEvent>any());
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
 
                 button.testSelection();
-                verify(action, never()).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
-                
+                verify(action, never()).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+
                 button.testDeselection();
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
 
 
-                sub.unsubscribe();
+                sub.dispose();
                 button.testSelection();
-                verify(action, never()).call(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
-                verify(action, times(1)).call(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(SELECTED)));
+                verify(action, times(1)).accept(Mockito.<ItemEvent>argThat(itemEventMatcher(DESELECTED)));
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
             }
         }).awaitTerminal();
     }
-    
-    private Matcher<ItemEvent> itemEventMatcher(final int eventType)
-    {
+
+    private Matcher<ItemEvent> itemEventMatcher(final int eventType) {
         return new ArgumentMatcher<ItemEvent>() {
             @Override
             public boolean matches(Object argument) {
-                if (argument.getClass() !=  ItemEvent.class)
+                if (argument.getClass() != ItemEvent.class)
                     return false;
-                
+
                 return ((ItemEvent) argument).getStateChange() == eventType;
             }
         };

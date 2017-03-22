@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.functions.Cancellable;
+import io.reactivex.schedulers.SwingScheduler;
 
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -52,9 +51,9 @@ public enum ChangeEventSource { ; // no instances
 	 */
 	public static Observable<ChangeEvent> fromChangeEventsOf(final Object changeEventSource) {
 		checkHasChangeListenerSupport(changeEventSource);
-		return Observable.create(new OnSubscribe<ChangeEvent>() {
+		return Observable.create(new ObservableOnSubscribe<ChangeEvent>() {
 			@Override
-			public void call(final Subscriber<? super ChangeEvent> subscriber) {
+			public void subscribe(final ObservableEmitter<ChangeEvent> subscriber) {
 				final ChangeListener listener = new ChangeListener() {
 					@Override
 					public void stateChanged(final ChangeEvent event) {
@@ -62,12 +61,12 @@ public enum ChangeEventSource { ; // no instances
 					}
 				};
 				addChangeListener(changeEventSource, listener);
-				subscriber.add(Subscriptions.create(new Action0() {
+				subscriber.setCancellable(new Cancellable() {
 					@Override
-					public void call() {
+					public void cancel() {
 						removeChangeListener(changeEventSource, listener);
 					}
-				}));
+				});
 			}
 		}).subscribeOn(SwingScheduler.getInstance())
 				.unsubscribeOn(SwingScheduler.getInstance());

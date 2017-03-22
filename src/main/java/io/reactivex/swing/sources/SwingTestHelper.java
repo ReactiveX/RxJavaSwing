@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import rx.Scheduler.Worker;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Action;
+import io.reactivex.schedulers.SwingScheduler;
 
 /* package-private */final class SwingTestHelper { // only for test
 
@@ -34,14 +34,14 @@ import rx.schedulers.SwingScheduler;
         return new SwingTestHelper();
     }
 
-    public SwingTestHelper runInEventDispatchThread(final Action0 action) {
-        Worker inner = SwingScheduler.getInstance().createWorker();
-        inner.schedule(new Action0() {
+    public SwingTestHelper runInEventDispatchThread(final Action action) {
+        Scheduler.Worker inner = SwingScheduler.getInstance().createWorker();
+        inner.schedule(new Runnable() {
 
             @Override
-            public void call() {
+            public void run() {
                 try {
-                    action.call();
+                    action.run();
                 } catch (Throwable e) {
                     error = e;
                 }

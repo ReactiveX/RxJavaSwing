@@ -1,41 +1,42 @@
 /**
  * Copyright 2014 Netflix, Inc.
- * 
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.functions.Func1;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.functions.Cancellable;
+import io.reactivex.functions.Function;
+import io.reactivex.observables.SwingObservable;
+import io.reactivex.schedulers.SwingScheduler;
 
 import java.awt.*;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 
-public enum FocusEventSource { ; // no instances
+public enum FocusEventSource {
+    ; // no instances
 
     /**
-     * @see rx.observables.SwingObservable#fromFocusEvents
+     * @see SwingObservable#fromFocusEvents
      */
     public static Observable<FocusEvent> fromFocusEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<FocusEvent>() {
+        return Observable.create(new ObservableOnSubscribe<FocusEvent>() {
             @Override
-            public void call(final Subscriber<? super FocusEvent> subscriber) {
+            public void subscribe(final ObservableEmitter<FocusEvent> subscriber) {
                 final FocusListener listener = new FocusListener() {
 
                     @Override
@@ -49,12 +50,12 @@ public enum FocusEventSource { ; // no instances
                     }
                 };
                 component.addFocusListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
+                subscriber.setCancellable(new Cancellable() {
                     @Override
-                    public void call() {
+                    public void cancel() {
                         component.removeFocusListener(listener);
                     }
-                }));
+                });
             }
         }).subscribeOn(SwingScheduler.getInstance())
                 .unsubscribeOn(SwingScheduler.getInstance());
@@ -63,7 +64,7 @@ public enum FocusEventSource { ; // no instances
     /**
      * Predicates that help with filtering observables for specific focus events.
      */
-    public enum Predicate implements Func1<FocusEvent, Boolean> {
+    public enum Predicate implements Function<FocusEvent, Boolean> {
         FOCUS_GAINED(FocusEvent.FOCUS_GAINED),
         FOCUS_LOST(FocusEvent.FOCUS_LOST);
 
@@ -74,7 +75,7 @@ public enum FocusEventSource { ; // no instances
         }
 
         @Override
-        public Boolean call(FocusEvent event) {
+        public Boolean apply(FocusEvent event) {
             return event.getID() == id;
         }
     }

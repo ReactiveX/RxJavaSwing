@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.Document;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.functions.Cancellable;
+import io.reactivex.observables.SwingObservable;
+import io.reactivex.schedulers.SwingScheduler;
 
 public enum DocumentEventSource { ; // no instances
 
     /**
-     * @see rx.observables.SwingObservable#fromDocumentEvents(Document)
+     * @see SwingObservable#fromDocumentEvents(Document)
      */
     public static Observable<DocumentEvent> fromDocumentEventsOf(final Document document) {
-        return Observable.create(new OnSubscribe<DocumentEvent>() {
+        return Observable.create(new ObservableOnSubscribe<DocumentEvent>() {
             @Override
-            public void call(final Subscriber<? super DocumentEvent> subscriber) {
+            public void subscribe(final ObservableEmitter<DocumentEvent> subscriber) {
                 final DocumentListener listener = new DocumentListener() {
                     @Override
                     public void insertUpdate(DocumentEvent event) {
@@ -52,12 +52,12 @@ public enum DocumentEventSource { ; // no instances
                     }
                 };
                 document.addDocumentListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
+                subscriber.setCancellable(new Cancellable() {
                     @Override
-                    public void call() {
+                    public void cancel() {
                         document.removeDocumentListener(listener);
                     }
-                }));
+                });
             }
         }).subscribeOn(SwingScheduler.getInstance())
                 .unsubscribeOn(SwingScheduler.getInstance());

@@ -1,33 +1,31 @@
 /**
  * Copyright 2014 Netflix, Inc.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.schedulers;
+package io.reactivex.schedulers;
 
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
-import rx.Scheduler;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.subscriptions.BooleanSubscription;
-import rx.subscriptions.CompositeSubscription;
-import rx.subscriptions.Subscriptions;
+import io.reactivex.Scheduler;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
 
 /**
  * Executes work on the Swing UI thread.
@@ -45,7 +43,7 @@ public final class SwingScheduler extends Scheduler {
         return INSTANCE;
     }
 
-    /* package for unit test */SwingScheduler() {
+    /* package for unit test */ SwingScheduler() {
     }
 
     @Override
@@ -55,23 +53,18 @@ public final class SwingScheduler extends Scheduler {
 
     private static class InnerSwingScheduler extends Worker {
 
-        private final CompositeSubscription innerSubscription = new CompositeSubscription();
+        private final CompositeDisposable innerSubscription = new CompositeDisposable();
 
         @Override
-        public void unsubscribe() {
-            innerSubscription.unsubscribe();
-        }
-
-        @Override
-        public boolean isUnsubscribed() {
-            return innerSubscription.isUnsubscribed();
-        }
-
-        @Override
-        public Subscription schedule(final Action0 action, long delayTime, TimeUnit unit) {
+        public Disposable schedule(final Runnable action, long delayTime, TimeUnit unit) {
             long delay = Math.max(0, unit.toMillis(delayTime));
             assertThatTheDelayIsValidForTheSwingTimer(delay);
-            final BooleanSubscription s = BooleanSubscription.create();
+
+
+            if(delayTime == 0){
+                return scheduleNow(action);
+            }
+
             class ExecuteOnceAction implements ActionListener {
                 private Timer timer;
 
@@ -82,11 +75,10 @@ public final class SwingScheduler extends Scheduler {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     timer.stop();
-                    if (innerSubscription.isUnsubscribed() || s.isUnsubscribed()) {
+                    if (innerSubscription.isDisposed()) {
                         return;
                     }
-                    action.call();
-                    innerSubscription.remove(s);
+                    action.run();
                 }
             }
 
@@ -95,53 +87,43 @@ public final class SwingScheduler extends Scheduler {
             executeOnce.setTimer(timer);
             timer.start();
 
-            innerSubscription.add(s);
-
-            // wrap for returning so it also removes it from the 'innerSubscription'
-            return Subscriptions.create(new Action0() {
-
-                @Override
-                public void call() {
-                    timer.stop();
-                    s.unsubscribe();
-                    innerSubscription.remove(s);
-                }
-
-            });
+            return innerSubscription;
         }
 
         @Override
-        public Subscription schedule(final Action0 action) {
-            final BooleanSubscription s = BooleanSubscription.create();
+        public Disposable schedule(final Runnable action) {
+            return scheduleNow(action);
+        }
 
+        private Disposable scheduleNow(final Runnable action) {
             final Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    if (innerSubscription.isUnsubscribed() || s.isUnsubscribed()) {
+                    if (innerSubscription.isDisposed()) {
                         return;
                     }
-                    action.call();
-                    innerSubscription.remove(s);
+                    action.run();
                 }
             };
 
-            if (SwingUtilities.isEventDispatchThread()){
+            if (SwingUtilities.isEventDispatchThread()) {
                 runnable.run();
             } else {
                 EventQueue.invokeLater(runnable);
             }
 
-            innerSubscription.add(s);
-            // wrap for returning so it also removes it from the 'innerSubscription'
-            return Subscriptions.create(new Action0() {
+            return innerSubscription;
+        }
 
-                @Override
-                public void call() {
-                    s.unsubscribe();
-                    innerSubscription.remove(s);
-                }
+        @Override
+        public void dispose() {
+            innerSubscription.dispose();
 
-            });
+        }
+
+        @Override
+        public boolean isDisposed() {
+            return innerSubscription.isDisposed();
         }
 
     }

@@ -1,79 +1,71 @@
 /**
  * Copyright 2014 Netflix, Inc.
- * 
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
-import java.awt.Component;
-import java.awt.Point;
-import java.awt.event.*;
-
-
-import javax.swing.JPanel;
-
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Matchers;
 
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+
+import static org.mockito.Mockito.*;
 
 public class MouseEventSourceTest {
     private Component comp = new JPanel();
 
     @Test
     public void testRelativeMouseMotion() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<Point> action = mock(Action1.class);
+                Consumer<Point> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
-                Subscription sub = MouseEventSource.fromRelativeMouseMotion(comp).subscribe(
+                Disposable sub = MouseEventSource.fromRelativeMouseMotion(comp).subscribe(
                         action, error, complete);
 
                 InOrder inOrder = inOrder(action);
 
-                verify(action, never()).call(Matchers.<Point> any());
-                verify(error, never()).call(Matchers.<Exception> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<Point>any());
+                verify(error, never()).accept(Matchers.<Exception>any());
+                verify(complete, never()).run();
 
                 fireMouseMotionEvent(mouseEvent(0, 0, MouseEvent.MOUSE_MOVED));
-                verify(action, never()).call(Matchers.<Point> any());
+                verify(action, never()).accept(Matchers.<Point>any());
 
                 fireMouseMotionEvent(mouseEvent(10, -5, MouseEvent.MOUSE_MOVED));
-                inOrder.verify(action, times(1)).call(new Point(10, -5));
+                inOrder.verify(action, times(1)).accept(new Point(10, -5));
 
                 fireMouseMotionEvent(mouseEvent(6, 10, MouseEvent.MOUSE_MOVED));
-                inOrder.verify(action, times(1)).call(new Point(-4, 15));
+                inOrder.verify(action, times(1)).accept(new Point(-4, 15));
 
-                sub.unsubscribe();
+                sub.dispose();
                 fireMouseMotionEvent(mouseEvent(0, 0, MouseEvent.MOUSE_MOVED));
-                inOrder.verify(action, never()).call(Matchers.<Point> any());
-                verify(error, never()).call(Matchers.<Exception> any());
-                verify(complete, never()).call();
+                inOrder.verify(action, never()).accept(Matchers.<Point>any());
+                verify(error, never()).accept(Matchers.<Exception>any());
+                verify(complete, never()).run();
             }
 
         }).awaitTerminal();
@@ -81,43 +73,43 @@ public class MouseEventSourceTest {
 
     @Test
     public void testMouseEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<MouseEvent> action = mock(Action1.class);
+                Consumer<MouseEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
-                Subscription sub = MouseEventSource.fromMouseEventsOf(comp)
+                Disposable sub = MouseEventSource.fromMouseEventsOf(comp)
                         .subscribe(action, error, complete);
 
                 InOrder inOrder = inOrder(action);
 
-                verify(action, never()).call(Matchers.<MouseEvent> any());
-                verify(error, never()).call(Matchers.<Exception> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<MouseEvent>any());
+                verify(error, never()).accept(Matchers.<Exception>any());
+                verify(complete, never()).run();
 
                 MouseEvent mouseEvent =
                         mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED);
                 fireMouseClickEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
                 mouseEvent = mouseEvent(300, 200, MouseEvent.MOUSE_CLICKED);
                 fireMouseClickEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
-                mouseEvent = mouseEvent(0, 0,  MouseEvent.MOUSE_CLICKED);
+                mouseEvent = mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED);
                 fireMouseClickEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
-                sub.unsubscribe();
+                sub.dispose();
                 fireMouseClickEvent(mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED));
-                inOrder.verify(action, never()).call(Matchers.<MouseEvent> any());
-                verify(error, never()).call(Matchers.<Exception> any());
-                verify(complete, never()).call();
+                inOrder.verify(action, never()).accept(Matchers.<MouseEvent>any());
+                verify(error, never()).accept(Matchers.<Exception>any());
+                verify(complete, never()).run();
             }
 
         }).awaitTerminal();
@@ -125,46 +117,46 @@ public class MouseEventSourceTest {
 
     @Test
     public void testMouseWheelEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<MouseEvent> action = mock(Action1.class);
+                Consumer<MouseEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
-                Subscription sub = MouseEventSource.fromMouseWheelEvents(comp)
+                Disposable sub = MouseEventSource.fromMouseWheelEvents(comp)
                         .subscribe(action, error, complete);
 
                 InOrder inOrder = inOrder(action);
 
-                verify(action, never()).call(Matchers.<MouseEvent> any());
-                verify(error, never()).call(Matchers.<Exception> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<MouseEvent>any());
+                verify(error, never()).accept(Matchers.<Exception>any());
+                verify(complete, never()).run();
 
                 MouseWheelEvent mouseEvent = mouseWheelEvent(0);
                 fireMouseWheelEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
                 mouseEvent = mouseWheelEvent(3);
                 fireMouseWheelEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
                 mouseEvent = mouseWheelEvent(5);
                 fireMouseWheelEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
                 mouseEvent = mouseWheelEvent(1);
                 fireMouseWheelEvent(mouseEvent);
-                inOrder.verify(action, times(1)).call(mouseEvent);
+                inOrder.verify(action, times(1)).accept(mouseEvent);
 
-                sub.unsubscribe();
-                fireMouseClickEvent(mouseEvent(0, 0,  MouseEvent.MOUSE_CLICKED));
-                inOrder.verify(action, never()).call(Matchers.<MouseEvent> any());
-                verify(error, never()).call(Matchers.<Exception> any());
-                verify(complete, never()).call();
+                sub.dispose();
+                fireMouseClickEvent(mouseEvent(0, 0, MouseEvent.MOUSE_CLICKED));
+                inOrder.verify(action, never()).accept(Matchers.<MouseEvent>any());
+                verify(error, never()).accept(Matchers.<Exception>any());
+                verify(complete, never()).run();
             }
 
         }).awaitTerminal();

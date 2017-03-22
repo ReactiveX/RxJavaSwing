@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.observables;
+package io.reactivex.observables;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -27,9 +27,9 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.text.Document;
 
-import rx.Observable;
-import rx.functions.Func1;
-import rx.swing.sources.*;
+import io.reactivex.Observable;
+import io.reactivex.functions.Predicate;
+import io.reactivex.swing.sources.*;
 
 /**
  * Allows creating observables from various sources specific to Swing. 
@@ -66,9 +66,9 @@ public enum SwingObservable { ; // no instances
      * @return Observable of key events.
      */
     public static Observable<KeyEvent> fromKeyEvents(Component component, final Set<Integer> keyCodes) {
-        return fromKeyEvents(component).filter(new Func1<KeyEvent, Boolean>() {
+        return fromKeyEvents(component).filter(new Predicate<KeyEvent>() {
             @Override
-            public Boolean call(KeyEvent event) {
+            public boolean test(KeyEvent event) {
                 return keyCodes.contains(event.getKeyCode());
             }
         });
@@ -180,9 +180,9 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is selected.
      */
     public static Observable<ItemEvent> fromItemSelectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
+        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Predicate<ItemEvent>() {
             @Override
-            public Boolean call(ItemEvent event) {
+            public boolean test(ItemEvent event) {
                 return event.getStateChange() == ItemEvent.SELECTED;
             }
         });
@@ -196,9 +196,9 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is deselected.
      */
     public static Observable<ItemEvent> fromItemDeselectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
+        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Predicate<ItemEvent>() {
             @Override
-            public Boolean call(ItemEvent event) {
+            public boolean test(ItemEvent event) {
                 return event.getStateChange() == ItemEvent.DESELECTED;
             }
         });
@@ -239,9 +239,9 @@ public enum SwingObservable { ; // no instances
      * @return Observable of property change events for the given component, filtered by the provided property name
      */
     public static Observable<PropertyChangeEvent> fromPropertyChangeEvents(Component component, final String propertyName) {
-        return fromPropertyChangeEvents(component).filter(new Func1<PropertyChangeEvent, Boolean>() {
+        return fromPropertyChangeEvents(component).filter(new Predicate<PropertyChangeEvent>() {
             @Override
-            public Boolean call(PropertyChangeEvent event) {
+            public boolean test(PropertyChangeEvent event) {
                 return event.getPropertyName().equals(propertyName);
             }
         });
@@ -276,9 +276,9 @@ public enum SwingObservable { ; // no instances
      * @return Observable of document events.
      */
     public static Observable<DocumentEvent> fromDocumentEvents(Document document, final Set<DocumentEvent.EventType> eventTypes) {
-        return fromDocumentEvents(document).filter(new Func1<DocumentEvent, Boolean>() {
+        return fromDocumentEvents(document).filter(new Predicate<DocumentEvent>() {
             @Override
-            public Boolean call(DocumentEvent event) {
+            public boolean test(DocumentEvent event) {
                 return eventTypes.contains(event.getType());
             }
         });

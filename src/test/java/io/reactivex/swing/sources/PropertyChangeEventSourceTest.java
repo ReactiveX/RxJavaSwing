@@ -13,54 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.swing.sources;
+package io.reactivex.swing.sources;
 
-import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.awt.Component;
-import java.awt.event.ItemEvent;
 import java.beans.PropertyChangeEvent;
 
 import javax.swing.JPanel;
 
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.observables.SwingObservable;
+import io.reactivex.observables.SwingObservable;
 
 public class PropertyChangeEventSourceTest
 {
     @Test
     public void testObservingPropertyEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call()
+            public void run()throws Exception
             {
                 @SuppressWarnings("unchecked")
-                Action1<PropertyChangeEvent> action = mock(Action1.class);
+                Consumer<PropertyChangeEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
                 
                 Component component = new JPanel();
                 
-                Subscription subscription = PropertyChangeEventSource.fromPropertyChangeEventsOf(component)
+                Disposable subscription = PropertyChangeEventSource.fromPropertyChangeEventsOf(component)
                                                                      .subscribe(action, error, complete);
                 
-                verify(action, never()).call(Matchers.<PropertyChangeEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<PropertyChangeEvent> any());
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
                 
                 component.setEnabled(false);
-                verify(action, times(1)).call(Mockito.argThat(propertyChangeEventMatcher("enabled", true, false)));
+                verify(action, times(1)).accept(Mockito.argThat(propertyChangeEventMatcher("enabled", true, false)));
                 verifyNoMoreInteractions(action, error, complete);
                 
                 // check that an event is only fired if the value really changes
@@ -68,16 +66,16 @@ public class PropertyChangeEventSourceTest
                 verifyNoMoreInteractions(action, error, complete);
                 
                 component.setEnabled(true);
-                verify(action, times(1)).call(Mockito.argThat(propertyChangeEventMatcher("enabled", false, true)));
+                verify(action, times(1)).accept(Mockito.argThat(propertyChangeEventMatcher("enabled", false, true)));
                 verifyNoMoreInteractions(action, error, complete);
                 
                 // check some arbitrary property
                 component.firePropertyChange("width", 200, 300);
-                verify(action, times(1)).call(Mockito.argThat(propertyChangeEventMatcher("width", 200l, 300l)));
+                verify(action, times(1)).accept(Mockito.argThat(propertyChangeEventMatcher("width", 200l, 300l)));
                 verifyNoMoreInteractions(action, error, complete);
                 
                 // verify no events sent after unsubscribing
-                subscription.unsubscribe();
+                subscription.dispose();
                 component.setEnabled(false);
                 verifyNoMoreInteractions(action, error, complete);
             }
@@ -87,25 +85,25 @@ public class PropertyChangeEventSourceTest
     
     @Test
     public void testObservingFilteredPropertyEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call()
+            public void run() throws Exception
             {
                 @SuppressWarnings("unchecked")
-                Action1<PropertyChangeEvent> action = mock(Action1.class);
+                Consumer<PropertyChangeEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
                 
                 Component component = new JPanel();
                 
-                Subscription subscription = SwingObservable.fromPropertyChangeEvents(component, "enabled")
+                Disposable subscription = SwingObservable.fromPropertyChangeEvents(component, "enabled")
                                                            .subscribe(action, error, complete);
                 
-                verify(action, never()).call(Matchers.<PropertyChangeEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<PropertyChangeEvent> any());
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
                 
                 // trigger a bunch of property change events and verify that only the enbled ones are observed
                 component.setEnabled(false);
@@ -114,11 +112,11 @@ public class PropertyChangeEventSourceTest
                 component.firePropertyChange("width", 200, 300);
                 component.firePropertyChange("height", 400, 200);
                 component.firePropertyChange("depth", 100, 300);
-                verify(action, times(1)).call(Mockito.argThat(propertyChangeEventMatcher("enabled", true, false)));
-                verify(action, times(1)).call(Mockito.argThat(propertyChangeEventMatcher("enabled", false, true)));
+                verify(action, times(1)).accept(Mockito.argThat(propertyChangeEventMatcher("enabled", true, false)));
+                verify(action, times(1)).accept(Mockito.argThat(propertyChangeEventMatcher("enabled", false, true)));
                 verifyNoMoreInteractions(action, error, complete);
                 
-                subscription.unsubscribe();
+                subscription.dispose();
             }
             
         }).awaitTerminal();
