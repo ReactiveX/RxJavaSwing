@@ -22,17 +22,16 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.observables.SwingObservable;
 import io.reactivex.swing.sources.ContainerEventSource.Predicate;
-import org.hamcrest.Matcher;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.SelfDescribing;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.mockito.ArgumentMatcher;
-import org.mockito.InOrder;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
+import org.mockito.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -61,25 +60,27 @@ public class ContainerEventSourceTest {
                 {observableFromSwingObservable()}});
     }
 
-    private static Matcher<ContainerEvent> containerEventMatcher(final Container container, final Component child, final int id) {
+    private static ArgumentMatcher<ContainerEvent> containerEventMatcher(final Container container, final Component child, final int id) {
         return new ArgumentMatcher<ContainerEvent>() {
             @Override
-            public boolean matches(Object argument) {
-                if (argument.getClass() != ContainerEvent.class)
+            public boolean matches(ContainerEvent event) {
+                if (container != event.getContainer()) {
                     return false;
+                }
 
-                ContainerEvent event = (ContainerEvent) argument;
-
-                if (container != event.getContainer())
+                if (container != event.getSource()) {
                     return false;
+                }
 
-                if (container != event.getSource())
+                if (child != event.getChild()) {
                     return false;
+                }
 
-                if (child != event.getChild())
+                if(event.getID() != id) {
                     return false;
+                }
 
-                return event.getID() == id;
+                return true;
             }
         };
     }
@@ -125,7 +126,7 @@ public class ContainerEventSourceTest {
 
                 InOrder inOrder = Mockito.inOrder(action);
 
-                inOrder.verify(action).accept(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_ADDED)));
+                inOrder.verify(action).accept(ArgumentMatchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_ADDED)));
                 inOrder.verify(action).accept(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_REMOVED)));
                 inOrder.verifyNoMoreInteractions();
                 Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));

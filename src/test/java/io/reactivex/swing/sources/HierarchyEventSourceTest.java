@@ -119,15 +119,10 @@ public class HierarchyEventSourceTest {
         }).awaitTerminal();
     }
 
-    private Matcher<HierarchyEvent> hierarchyEventMatcher(final Component source, final int changeFlags, final Container changed, final Container changedParent) {
+    private ArgumentMatcher<HierarchyEvent> hierarchyEventMatcher(final Component source, final int changeFlags, final Container changed, final Container changedParent) {
         return new ArgumentMatcher<HierarchyEvent>() {
             @Override
-            public boolean matches(Object argument) {
-                if (argument.getClass() != HierarchyEvent.class)
-                    return false;
-
-                HierarchyEvent event = (HierarchyEvent) argument;
-
+            public boolean matches(HierarchyEvent event) {
                 if (source != event.getComponent())
                     return false;
 

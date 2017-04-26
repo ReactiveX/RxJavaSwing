@@ -131,15 +131,11 @@ public class DocumentEventSourceTest {
         }).awaitTerminal();
     }
 
-    private static Matcher<DocumentEvent> documentEventMatcher(final DocumentEvent.EventType eventType) {
+    private static ArgumentMatcher<DocumentEvent> documentEventMatcher(final DocumentEvent.EventType eventType) {
         return new ArgumentMatcher<DocumentEvent>() {
             @Override
-            public boolean matches(Object argument) {
-                if (!(argument instanceof DocumentEvent)) {
-                    return false;
-                }
-
-                return ((DocumentEvent) argument).getType().equals(eventType);
+            public boolean matches(DocumentEvent argument) {
+                return argument.getType().equals(eventType);
             }
         };
     }

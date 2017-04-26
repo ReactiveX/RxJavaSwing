@@ -25,7 +25,6 @@ import javax.swing.JPanel;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
-import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
@@ -122,17 +121,11 @@ public class PropertyChangeEventSourceTest
         }).awaitTerminal();
     }
     
-    private static Matcher<PropertyChangeEvent> propertyChangeEventMatcher(final String propertyName, final Object oldValue, final Object newValue)
+    private static ArgumentMatcher<PropertyChangeEvent> propertyChangeEventMatcher(final String propertyName, final Object oldValue, final Object newValue)
     {
         return new ArgumentMatcher<PropertyChangeEvent>() {
             @Override
-            public boolean matches(Object argument) {
-                if (argument.getClass() != PropertyChangeEvent.class) {
-                    return false;
-                }
-                
-                PropertyChangeEvent pcEvent = (PropertyChangeEvent) argument;
-                
+            public boolean matches(PropertyChangeEvent pcEvent) {
                 if(!propertyName.equals(pcEvent.getPropertyName())) {
                     return false;
                 }

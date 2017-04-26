@@ -199,14 +199,11 @@ public class ItemEventSourceTest {
         }).awaitTerminal();
     }
 
-    private Matcher<ItemEvent> itemEventMatcher(final int eventType) {
+    private ArgumentMatcher<ItemEvent> itemEventMatcher(final int eventType) {
         return new ArgumentMatcher<ItemEvent>() {
             @Override
-            public boolean matches(Object argument) {
-                if (argument.getClass() != ItemEvent.class)
-                    return false;
-
-                return ((ItemEvent) argument).getStateChange() == eventType;
+            public boolean matches(ItemEvent argument) {
+                return argument.getStateChange() == eventType;
             }
         };
     }
