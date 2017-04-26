@@ -1,4 +1,4 @@
-group = 'io.reactivex.rxswing2'
+group = 'io.reactivex.rxjava2'
 
 buildscript {
   repositories { jcenter() }
